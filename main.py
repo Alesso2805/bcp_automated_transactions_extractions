@@ -3,6 +3,7 @@ import pandas as pd
 import re
 import time
 from datetime import datetime, timedelta
+from openpyxl.reader.excel import load_workbook
 import config as CONFIG
 import pygetwindow as gw
 import win32gui
@@ -10,10 +11,15 @@ import win32con
 import pyautogui
 import pyperclip
 
-df = pd.read_excel(r'C:\Users\Alessandro\Desktop\Caja - 04022025 - Agresivo.xlsx', sheet_name='BCP_AGR')
+excel_path = r'C:\Users\Alessandro\Desktop\Caja - 04022025 - Agresivo.xlsx'
+
+df = pd.read_excel(excel_path, sheet_name='BCP_AGR')
 
 columna = 'Unnamed: 5'  # Cambia esto al nombre de la columna correcta
-fila_inicio = 10  # Cambia esto al número de fila desde donde quieres empezar (1-indexed)
+fila_inicio = 16  # Cambia esto al número de fila desde donde quieres empezar (1-indexed)
+
+target_column = 800
+start_row = 16
 
 screen_width, screen_height = pyautogui.size()
 print(f"Resolución de pantalla detectada: {screen_width}x{screen_height}")
@@ -21,50 +27,73 @@ print(f"Resolución de pantalla detectada: {screen_width}x{screen_height}")
 def main():
     if focus_existing_window("Nuevo Telecrédito"):
         print("La ventana ya estaba abierta y fue enfocada.")
+    time.sleep(0.5)
     pyautogui.click(int(screen_width * 0.50), int(screen_height * 0.20))
     time.sleep(0.5)
     pyautogui.click(int(screen_width * 0.50), int(screen_height * 0.25))
-    if not wait_for_color(int(screen_width * 0.20), int(screen_height * 0.76), (72,147,216)):
-        pyautogui.click(int(screen_width * 0.50), int(screen_height * 0.20))
-        pyautogui.click(int(screen_width * 0.50), int(screen_height * 0.30))
+    detect_agressive_independent()
     pyautogui.scroll(-500)
     pyautogui.click(int(screen_width * 0.25), int(screen_height * 0.50))
     pyautogui.click(int(screen_width * 0.25), int(screen_height * 0.30))
     wait_for_color(int(screen_width * 0.316), int(screen_height * 0.804), (212,102,40))
     pyautogui.click(int(screen_width * 0.35), int(screen_height * 0.36))
-
+    time.sleep(0.5)
     pyautogui.click(int(screen_width * 0.22), int(screen_height * 0.72))
+    two_yesterday = datetime.now() - timedelta(days=3)
+    two_yesterday = two_yesterday.strftime("%d%m%Y")
+    pyautogui.typewrite(two_yesterday)
+    pyautogui.click(int(screen_width * 0.41), int(screen_height * 0.72))
     yesterday = datetime.now() - timedelta(days=2)
     yesterday = yesterday.strftime("%d%m%Y")
-    pyautogui.typewrite(yesterday)
-    pyautogui.click(int(screen_width * 0.41), int(screen_height * 0.72))
     pyautogui.typewrite(yesterday)
     pyautogui.click(int(screen_width * 0.85), int(screen_height * 0.72))
 
     num_pages = detect_number_of_pages()
     print(f"Number of pages detected: {num_pages}")
-
     for valor in df[columna].iloc[fila_inicio - 1:]:
         for page in range(num_pages):
-            time.sleep(1)
+            time.sleep(0.5)
             pyautogui.hotkey('ctrl', 'f')
             pyautogui.typewrite(str(valor))
             pyautogui.press('enter')
-            time.sleep(2)
-            if search_successful():
+
+            pyautogui.press('enter')
+            time.sleep(0.5)
+            if search_color_on_screen((241,155,74)):
                 print(f"Match found for {valor} on page {page + 1}")
                 break
             else:
-                pyautogui.scroll(-1800)
+                pyautogui.scroll(-2000)
+                time.sleep(0.5)
                 go_to_next_page(page)
                 print(f"No match found for {valor} on page {page + 1}, moving to next page")
 
+def detect_agressive_independent():
+    attempt = 0
+    while not wait_for_color(int(screen_width * 0.20), int(screen_height * 0.76), (72,147,216)):
+        if attempt == 0:
+            pyautogui.click(int(screen_width * 0.50), int(screen_height * 0.20))
+            pyautogui.click(int(screen_width * 0.50), int(screen_height * 0.25))
+        elif attempt == 1:
+            pyautogui.click(int(screen_width * 0.50), int(screen_height * 0.20))
+            pyautogui.click(int(screen_width * 0.50), int(screen_height * 0.30))
+        elif attempt == 2:
+            pyautogui.click(int(screen_width * 0.50), int(screen_height * 0.20))
+            pyautogui.click(int(screen_width * 0.50), int(screen_height * 0.35))
+        elif attempt == 3:
+            pyautogui.scroll(-500)
+            pyautogui.click(int(screen_width * 0.50), int(screen_height * 0.35))
+        attempt += 1
+        wait_for_color(int(screen_width * 0.20), int(screen_height * 0.76), (72,147,216))
+
 def detect_number_of_pages():
     page_buttons_coords = [
-        (1368, 1164),  # Button 1
-        (1433, 1156),  # Button 2
-        (1511, 1154),  # Button 3
-        (1580, 1168)   # Button 4 (if exists)
+        (1296, 1169),  # Button 1
+        (1367, 1167),  # Button 2
+        (1445, 1162),  # Button 3
+        (1511, 1158),   # Button 4 (if exists)
+        (1589, 1160),  # Button 5 (if exists)
+        (1651, 1151)   # Button 6 (if exists)
     ]
     num_pages = 0
     for coord in page_buttons_coords:
@@ -75,25 +104,74 @@ def detect_number_of_pages():
             break
     return num_pages
 
-def search_successful():
-    # Wait for a short period to allow the search to complete
-    time.sleep(1)
+def search_color_on_screen(target_color, timeout=2):
+    """
+    Search for a specific color on the screen and return its coordinates.
 
-    # Check if the search box is highlighted, indicating a match was found
-    search_box_coords = (screen_width // 2, screen_height // 2)  # Adjust as needed
-    search_box_color = pyautogui.pixel(search_box_coords[0], search_box_coords[1])
+    Args:
+        target_color (tuple): The RGB color to search for, e.g., (241, 155, 74).
+        timeout (int): The maximum time to search for the color.
 
-    # Define the color that indicates a match was found (adjust as needed)
-    match_color = (241,155,74)  # Example color
+    Returns:
+        tuple: The coordinates (x, y) of the color if found, otherwise None.
+    """
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        screenshot = pyautogui.screenshot()
+        width, height = screenshot.size
+        for x in range(width):
+            for y in range(height):
+                if screenshot.getpixel((x, y)) == target_color:
+                    perform_action_and_insert_value(x, y, target_color)
+                    return (x, y)
+        time.sleep(0.5)
+    print(f"Timeout reached. Color {target_color} not detected on the screen.")
+    return None
 
-    return search_box_color == match_color
+def perform_action_and_insert_value(x, y, target_color):
+    print(f"Color {target_color} detected at position ({x}, {y})")
+    pyautogui.click(2417, y)
+    time.sleep(0.5)
+    pyautogui.doubleClick(1229, 1173)
+    pyautogui.hotkey('ctrl', 'c')
+
+    # Get the copied value from the clipboard
+    copied_value = pyperclip.paste()
+    print(f"Copied value: {copied_value}")
+
+    # Find the first empty row in the target column starting from start_row
+    current_row = start_row
+    while current_row < len(df) and pd.notna(df.at[current_row, target_column]):
+        current_row += 1
+
+    # Insert the copied value into the next available row in the target column
+    df.at[current_row, target_column] = copied_value
+    print(f"Value '{copied_value}' inserted into row {current_row}, column {target_column}")
+
+    # Load the workbook and select the sheet
+    workbook = load_workbook(excel_path)
+    sheet = workbook['BCP_AGR']
+
+    # Update the cell value without changing the format
+    cell = sheet.cell(row=current_row + 1, column=df.columns.get_loc(target_column) + 1)
+    cell.value = copied_value
+
+    # Save the workbook
+    workbook.save(excel_path)
+    print("DataFrame saved to Excel file")
+
+    # Close the window
+    pyautogui.click(546, 417)
+    time.sleep(0.5)
 
 def go_to_next_page(current_page):
     page_buttons_coords = [
-        (1368, 1164),  # Button 1
-        (1433, 1156),  # Button 2
-        (1511, 1154),  # Button 3
-        (1580, 1168)   # Button 4 (if exists)
+        (1296, 1169),  # Button 1
+        (1367, 1167),  # Button 2
+        (1445, 1162),  # Button 3
+        (1511, 1158),   # Button 4 (if exists)
+        (1589, 1160),  # Button 5 (if exists)
+        (1651, 1151)   # Button 6 (if exists)
     ]
     if current_page < len(page_buttons_coords):
         pyautogui.click(page_buttons_coords[current_page])
@@ -145,3 +223,5 @@ def wait_for_color(x, y, target_color, timeout=5):
     return False
 
 main()
+
+
