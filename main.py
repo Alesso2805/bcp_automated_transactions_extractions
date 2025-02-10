@@ -39,11 +39,11 @@ def main():
     pyautogui.click(int(screen_width * 0.35), int(screen_height * 0.36))
     time.sleep(0.5)
     pyautogui.click(int(screen_width * 0.22), int(screen_height * 0.72))
-    two_yesterday = datetime.now() - timedelta(days=3)
+    two_yesterday = datetime.now() - timedelta(days=6)
     two_yesterday = two_yesterday.strftime("%d%m%Y")
     pyautogui.typewrite(two_yesterday)
     pyautogui.click(int(screen_width * 0.41), int(screen_height * 0.72))
-    yesterday = datetime.now() - timedelta(days=2)
+    yesterday = datetime.now() - timedelta(days=5)
     yesterday = yesterday.strftime("%d%m%Y")
     pyautogui.typewrite(yesterday)
     pyautogui.click(int(screen_width * 0.85), int(screen_height * 0.72))
@@ -130,9 +130,9 @@ def search_color_on_screen(target_color, timeout=2):
 
 def perform_action_and_insert_value(x, y, target_color):
     print(f"Color {target_color} detected at position ({x}, {y})")
-    pyautogui.click(2417, y)
-    time.sleep(0.5)
-    pyautogui.doubleClick(1229, 1173)
+    pyautogui.click(int(screen_width * 0.94), y)
+    time.sleep(0.8)
+    pyautogui.doubleClick(int(screen_width * 0.48), int(screen_height * 0.81))
     pyautogui.hotkey('ctrl', 'c')
 
     # Get the copied value from the clipboard
@@ -161,7 +161,7 @@ def perform_action_and_insert_value(x, y, target_color):
     print("DataFrame saved to Excel file")
 
     # Close the window
-    pyautogui.click(546, 417)
+    pyautogui.click(int(screen_width * 0.21), int(screen_height * 0.289))
     time.sleep(0.5)
 
 def go_to_next_page(current_page):
