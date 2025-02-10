@@ -11,15 +11,18 @@ import win32con
 import pyautogui
 import pyperclip
 
-excel_path = r'C:\Users\Flip\Desktop\Caja - 04022025 - Agresivo.xlsx'
+two_yesterday = datetime.now() - timedelta(days=3)
+two_yesterday = two_yesterday.strftime("%d%m%Y")
 
-df = pd.read_excel(excel_path, sheet_name='BCP_AGR')
+excel_path = rf'C:\Users\Flip\Desktop\Caja - {two_yesterday} - Agresivo.xlsx'
+
+df = pd.read_excel(excel_path, sheet_name='AccountDetail')
 
 columna = 'Unnamed: 5'  # Cambia esto al nombre de la columna correcta
-fila_inicio = 16  # Cambia esto al número de fila desde donde quieres empezar (1-indexed)
+fila_inicio = 8  # Cambia esto al número de fila desde donde quieres empezar (1-indexed)
 
-target_column = 800
-start_row = 16
+target_column = 'Unnamed: 11'
+start_row = 8
 
 screen_width, screen_height = pyautogui.size()
 print(f"Resolución de pantalla detectada: {screen_width}x{screen_height}")
@@ -38,12 +41,11 @@ def main():
     wait_for_color(int(screen_width * 0.316), int(screen_height * 0.804), (212,102,40))
     pyautogui.click(int(screen_width * 0.35), int(screen_height * 0.36))
     time.sleep(0.5)
-    pyautogui.click(int(screen_width * 0.22), int(screen_height * 0.72))
-    two_yesterday = datetime.now() - timedelta(days=6)
-    two_yesterday = two_yesterday.strftime("%d%m%Y")
+    # escribir el dia de antes de ayer
+    pyautogui.click(int(screen_width * 0.21), int(screen_height * 0.71))
     pyautogui.typewrite(two_yesterday)
-    pyautogui.click(int(screen_width * 0.41), int(screen_height * 0.72))
-    yesterday = datetime.now() - timedelta(days=5)
+    pyautogui.click(int(screen_width * 0.41), int(screen_height * 0.714))
+    yesterday = datetime.now() - timedelta(days=2)
     yesterday = yesterday.strftime("%d%m%Y")
     pyautogui.typewrite(yesterday)
     # press Search button
@@ -66,6 +68,7 @@ def main():
                 pyautogui.scroll(-4000)
                 time.sleep(0.5)
                 go_to_next_page(page)
+                time.sleep(0.5)
                 print(f"No match found for {valor} on page {page + 1}, moving to next page")
 
 def detect_agressive_independent():
@@ -149,7 +152,7 @@ def perform_action_and_insert_value(x, y, target_color):
 
     # Load the workbook and select the sheet
     workbook = load_workbook(excel_path)
-    sheet = workbook['BCP_AGR']
+    sheet = workbook['AccountDetail']
 
     # Update the cell value without changing the format
     cell = sheet.cell(row=current_row + 1, column=df.columns.get_loc(target_column) + 1)
