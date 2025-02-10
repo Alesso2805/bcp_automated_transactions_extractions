@@ -15,8 +15,12 @@ two_yesterday = datetime.now() - timedelta(days=3)
 two_yesterday = two_yesterday.strftime("%d%m%Y")
 
 excel_path = rf'C:\Users\Flip\Desktop\Caja - {two_yesterday} - Agresivo.xlsx'
+second_excel_path = rf'C:\Users\Flip\Desktop\Solicitudes - {two_yesterday} - AGR.xlsx'
+
 
 df = pd.read_excel(excel_path, sheet_name='AccountDetail')
+df_second = pd.read_excel(second_excel_path, sheet_name='Sheet1')
+
 
 columna = 'Unnamed: 5'  # Cambia esto al nombre de la columna correcta
 fila_inicio = 8  # Cambia esto al número de fila desde donde quieres empezar (1-indexed)
@@ -26,6 +30,16 @@ start_row = 8
 
 screen_width, screen_height = pyautogui.size()
 print(f"Resolución de pantalla detectada: {screen_width}x{screen_height}")
+
+def buscar_y_extraer_valores(valor, df):
+    fila = df[df['Dni'] == valor]
+    if not fila.empty:
+        nombre = fila['Nombre'].values[0]
+        codigo_flip = fila['Codigo Flip'].values[0]
+        return nombre, codigo_flip
+    else:
+        return None, None
+
 
 def main():
     if focus_existing_window("Nuevo Telecrédito"):
@@ -138,31 +152,33 @@ def perform_action_and_insert_value(x, y, target_color):
     time.sleep(0.5)
     pyautogui.doubleClick(int(screen_width * 0.484), int(screen_height * 0.813))
     pyautogui.hotkey('ctrl', 'c')
-    # Get the copied value from the clipboard
     copied_value = pyperclip.paste()
     print(f"Copied value: {copied_value}")
-    # Find the first empty row in the target column starting from start_row
+
     current_row = start_row
     while current_row < len(df) and pd.notna(df.at[current_row, target_column]):
         current_row += 1
 
-    # Insert the copied value into the next available row in the target column
     df.at[current_row, target_column] = copied_value
     print(f"Value '{copied_value}' inserted into row {current_row}, column {target_column}")
 
-    # Load the workbook and select the sheet
     workbook = load_workbook(excel_path)
     sheet = workbook['AccountDetail']
-
-    # Update the cell value without changing the format
     cell = sheet.cell(row=current_row + 1, column=df.columns.get_loc(target_column) + 1)
     cell.value = copied_value
 
-    # Save the workbook
+    # Buscar y extraer valores del segundo archivo
+    nombre, codigo_flip = buscar_y_extraer_valores(copied_value, df_second)
+    if nombre and codigo_flip:
+        df.at[current_row, 'Nombre'] = nombre
+        df.at[current_row, 'Codigo Flip'] = codigo_flip
+        sheet.cell(row=current_row + 1, column=df.columns.get_loc('Nombre') + 1).value = nombre
+        sheet.cell(row=current_row + 1, column=df.columns.get_loc('Codigo Flip') + 1).value = codigo_flip
+        print(f"Nombre '{nombre}' y Codigo Flip '{codigo_flip}' insertados en la fila {current_row}")
+
     workbook.save(excel_path)
     print("DataFrame saved to Excel file")
 
-    # Close the window
     pyautogui.click(int(screen_width * 0.21), int(screen_height * 0.289))
     time.sleep(0.5)
 
