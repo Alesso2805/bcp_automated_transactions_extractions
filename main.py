@@ -11,16 +11,14 @@ import win32con
 import pyautogui
 import pyperclip
 
-two_yesterday = datetime.now() - timedelta(days=3)
+two_yesterday = datetime.now() - timedelta(days=4)
 two_yesterday = two_yesterday.strftime("%d%m%Y")
 
-excel_path = rf'C:\Users\USER\Desktop\Caja - {two_yesterday} - Agresivo.xlsx'
-second_excel_path = rf'C:\Users\USER\Desktop\Solicitudes - {two_yesterday} - AGR.xlsx'
-
+excel_path = rf'C:\Users\Flip\Desktop\Caja - {two_yesterday} - Agresivo.xlsx'
+second_excel_path = rf'C:\Users\Flip\Desktop\Solicitudes - {two_yesterday} - AGR.xlsx'
 
 df = pd.read_excel(excel_path, sheet_name='AccountDetail')
 df_second = pd.read_excel(second_excel_path, sheet_name='Sheet1')
-
 
 columna = 'Unnamed: 5'  # Cambia esto al nombre de la columna correcta
 fila_inicio = 8  # Cambia esto al número de fila desde donde quieres empezar (1-indexed)
@@ -36,9 +34,10 @@ def buscar_y_extraer_valores(valor, df):
     if not fila.empty:
         nombre = fila['Nombre'].values[0]
         codigo_flip = fila['Codigo Flip'].values[0]
-        return nombre, codigo_flip
+        monto = fila['Cantidad'].values[0]
+        return nombre, codigo_flip, monto
     else:
-        return None, None
+        return None, None, None
 
 
 def main():
@@ -49,7 +48,8 @@ def main():
     time.sleep(0.5)
     pyautogui.hotkey('tab')
     pyautogui.typewrite('agr')
-    pyautogui.click(int(screen_width * 0.50), int(screen_height * 0.20))
+    time.sleep(0.4)
+    pyautogui.click(int(screen_width * 0.50), int(screen_height * 0.24))
     wait_for_color(int(screen_width * 0.39), int(screen_height * 0.74), (232, 246, 252))
     pyautogui.scroll(-500)
     pyautogui.click(int(screen_width * 0.25), int(screen_height * 0.60))
@@ -58,14 +58,18 @@ def main():
     pyautogui.click(int(screen_width * 0.35), int(screen_height * 0.36))
     time.sleep(0.5)
     # escribir el dia de antes de ayer
+    for i in range(4):
+        pyautogui.hotkey('tab')
+        pyautogui.hotkey('backspace')
+    pyautogui.click()
     pyautogui.hotkey('tab')
     pyautogui.typewrite(two_yesterday)
     pyautogui.hotkey('tab')
-    yesterday = datetime.now() - timedelta(days=2)
+    yesterday = datetime.now() - timedelta(days=3)
     yesterday = yesterday.strftime("%d%m%Y")
     pyautogui.typewrite(yesterday)
-    # press Search button
-    pyautogui.click(int(screen_width * 0.87), int(screen_height * 0.715))
+    pyautogui.hotkey('tab')
+    pyautogui.hotkey('enter')
 
     num_pages = detect_number_of_pages()
     print(f"Number of pages detected: {num_pages}")
@@ -124,16 +128,6 @@ def detect_number_of_pages():
     return num_pages
 
 def search_color_on_screen(target_color, timeout=2):
-    """
-    Search for a specific color on the screen and return its coordinates.
-
-    Args:
-        target_color (tuple): The RGB color to search for, e.g., (241, 155, 74).
-        timeout (int): The maximum time to search for the color.
-
-    Returns:
-        tuple: The coordinates (x, y) of the color if found, otherwise None.
-    """
     start_time = time.time()
     while time.time() - start_time < timeout:
         screenshot = pyautogui.screenshot()
@@ -147,10 +141,11 @@ def search_color_on_screen(target_color, timeout=2):
     print(f"Timeout reached. Color {target_color} not detected on the screen.")
     return None
 
+
 def perform_action_and_insert_value(x, y, target_color):
     print(f"Color {target_color} detected at position ({x}, {y})")
     pyautogui.click(int(screen_width * 0.94), y)
-    wait_for_color(int(screen_width * 0.55), int(screen_height * 0.24), (255,255,255))
+    wait_for_color(int(screen_width * 0.55), int(screen_height * 0.24), (255, 255, 255))
     time.sleep(0.5)
     pyautogui.doubleClick(int(screen_width * 0.484), int(screen_height * 0.813))
     pyautogui.hotkey('ctrl', 'c')
@@ -170,13 +165,18 @@ def perform_action_and_insert_value(x, y, target_color):
     cell.value = copied_value
 
     # Buscar y extraer valores del segundo archivo
-    nombre, codigo_flip = buscar_y_extraer_valores(copied_value, df_second)
-    if nombre and codigo_flip:
-        df.at[current_row, 'Nombre'] = nombre
-        df.at[current_row, 'Codigo Flip'] = codigo_flip
-        sheet.cell(row=current_row + 1, column=df.columns.get_loc('Nombre') + 1).value = nombre
-        sheet.cell(row=current_row + 1, column=df.columns.get_loc('Codigo Flip') + 1).value = codigo_flip
-        print(f"Nombre '{nombre}' y Codigo Flip '{codigo_flip}' insertados en la fila {current_row}")
+    nombre, codigo_flip, monto = buscar_y_extraer_valores(copied_value, df_second)
+
+    if nombre and codigo_flip and monto:
+        df.at[current_row, 'Unnamed: 9'] = nombre
+        df.at[current_row, 'Unnamed: 15'] = codigo_flip
+        df.at[current_row, 'Unnamed: 13'] = monto
+        sheet.cell(row=current_row + 1, column=df.columns.get_loc('Unnamed: 9') + 1).value = nombre
+        sheet.cell(row=current_row + 1, column=df.columns.get_loc('Unnamed: 15') + 1).value = codigo_flip
+        sheet.cell(row=current_row + 1, column=df.columns.get_loc('Unnamed: 13') + 1).value = monto
+
+        print(
+            f"Nombre '{nombre}', Codigo Flip '{codigo_flip}' y Cantidad '{monto}' insertados en la fila {current_row}")
 
     workbook.save(excel_path)
     print("DataFrame saved to Excel file")
