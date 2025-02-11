@@ -14,8 +14,8 @@ import pyperclip
 two_yesterday = datetime.now() - timedelta(days=3)
 two_yesterday = two_yesterday.strftime("%d%m%Y")
 
-excel_path = rf'C:\Users\Flip\Desktop\Caja - {two_yesterday} - Agresivo.xlsx'
-second_excel_path = rf'C:\Users\Flip\Desktop\Solicitudes - {two_yesterday} - AGR.xlsx'
+excel_path = rf'C:\Users\USER\Desktop\Caja - {two_yesterday} - Agresivo.xlsx'
+second_excel_path = rf'C:\Users\USER\Desktop\Solicitudes - {two_yesterday} - AGR.xlsx'
 
 
 df = pd.read_excel(excel_path, sheet_name='AccountDetail')
@@ -45,10 +45,12 @@ def main():
     if focus_existing_window("Nuevo Telecrédito"):
         print("La ventana ya estaba abierta y fue enfocada.")
     time.sleep(0.5)
-    pyautogui.click(int(screen_width * 0.50), int(screen_height * 0.20))
+    pyautogui.click(int(screen_width * 0.50), int(screen_height * 0.15))
     time.sleep(0.5)
-    pyautogui.click(int(screen_width * 0.50), int(screen_height * 0.25))
-    detect_agressive_independent()
+    pyautogui.hotkey('tab')
+    pyautogui.typewrite('agr')
+    pyautogui.click(int(screen_width * 0.50), int(screen_height * 0.20))
+    wait_for_color(int(screen_width * 0.39), int(screen_height * 0.74), (232, 246, 252))
     pyautogui.scroll(-500)
     pyautogui.click(int(screen_width * 0.25), int(screen_height * 0.60))
     pyautogui.click(int(screen_width * 0.25), int(screen_height * 0.30))
@@ -56,9 +58,9 @@ def main():
     pyautogui.click(int(screen_width * 0.35), int(screen_height * 0.36))
     time.sleep(0.5)
     # escribir el dia de antes de ayer
-    pyautogui.click(int(screen_width * 0.21), int(screen_height * 0.71))
+    pyautogui.hotkey('tab')
     pyautogui.typewrite(two_yesterday)
-    pyautogui.click(int(screen_width * 0.41), int(screen_height * 0.714))
+    pyautogui.hotkey('tab')
     yesterday = datetime.now() - timedelta(days=2)
     yesterday = yesterday.strftime("%d%m%Y")
     pyautogui.typewrite(yesterday)
@@ -85,23 +87,23 @@ def main():
                 time.sleep(0.5)
                 print(f"No match found for {valor} on page {page + 1}, moving to next page")
 
-def detect_agressive_independent():
-    attempt = 0
-    while not wait_for_color(int(screen_width * 0.39), int(screen_height * 0.74), (232,246,252)):
-        if attempt == 0:
-            pyautogui.click(int(screen_width * 0.50), int(screen_height * 0.20))
-            pyautogui.click(int(screen_width * 0.50), int(screen_height * 0.25))
-        elif attempt == 1:
-            pyautogui.click(int(screen_width * 0.50), int(screen_height * 0.20))
-            pyautogui.click(int(screen_width * 0.50), int(screen_height * 0.30))
-        elif attempt == 2:
-            pyautogui.click(int(screen_width * 0.50), int(screen_height * 0.20))
-            pyautogui.click(int(screen_width * 0.50), int(screen_height * 0.35))
-        elif attempt == 3:
-            pyautogui.scroll(-500)
-            pyautogui.click(int(screen_width * 0.50), int(screen_height * 0.35))
-        attempt += 1
-        wait_for_color(int(screen_width * 0.20), int(screen_height * 0.76), (72,147,216))
+# def detect_agressive_independent():
+#     attempt = 0
+#     while not wait_for_color(int(screen_width * 0.39), int(screen_height * 0.74), (232,246,252)):
+#         if attempt == 0:
+#             pyautogui.click(int(screen_width * 0.50), int(screen_height * 0.20))
+#             pyautogui.click(int(screen_width * 0.50), int(screen_height * 0.25))
+#         elif attempt == 1:
+#             pyautogui.click(int(screen_width * 0.50), int(screen_height * 0.20))
+#             pyautogui.click(int(screen_width * 0.50), int(screen_height * 0.30))
+#         elif attempt == 2:
+#             pyautogui.click(int(screen_width * 0.50), int(screen_height * 0.20))
+#             pyautogui.click(int(screen_width * 0.50), int(screen_height * 0.35))
+#         elif attempt == 3:
+#             pyautogui.scroll(-500)
+#             pyautogui.click(int(screen_width * 0.50), int(screen_height * 0.35))
+#         attempt += 1
+#         wait_for_color(int(screen_width * 0.20), int(screen_height * 0.76), (72,147,216))
 
 def detect_number_of_pages():
     page_buttons_coords = [
