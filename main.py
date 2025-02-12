@@ -11,8 +11,8 @@ import win32con
 import pyautogui
 import pyperclip
 
-two_yesterday = (datetime.now() - timedelta(days=4)).strftime("%d%m%Y")
-yesterday = (datetime.now() - timedelta(days=3)).strftime("%d%m%Y")
+two_yesterday = (datetime.now() - timedelta(days=1)).strftime("%d%m%Y")
+yesterday = (datetime.now() - timedelta(days=1)).strftime("%d%m%Y")
 
 excel_path = rf'C:\Users\Flip\Desktop\Caja - {two_yesterday} - Agresivo.xlsx'
 second_excel_path = rf'C:\Users\Flip\Desktop\Solicitudes - {two_yesterday} - AGR.xlsx'
@@ -54,7 +54,7 @@ def wait_for_color(x, y, target_color, timeout=2):
     print("Tiempo de espera agotado. No se detectó el color.")
     return False
 
-def perform_action_and_insert_value(x, y, target_color):
+def perform_action_and_insert_value(x, y, target_color, current_row):
     print(f"Color {target_color} detected at position ({x}, {y})")
     pyautogui.click(int(screen_width * 0.94), y)
     wait_for_color(int(screen_width * 0.55), int(screen_height * 0.24), (255, 255, 255))
@@ -64,7 +64,6 @@ def perform_action_and_insert_value(x, y, target_color):
     copied_value = pyperclip.paste()
     print(f"Copied value: {copied_value}")
 
-    current_row = start_row
     while current_row < len(df) and pd.notna(df.at[current_row, target_column]):
         current_row += 1
 
@@ -85,10 +84,10 @@ def perform_action_and_insert_value(x, y, target_color):
         sheet.cell(row=current_row + 1, column=df.columns.get_loc('Unnamed: 13') + 1).value = monto
         print(f"Nombre '{nombre}', Codigo Flip '{codigo_flip}' y Cantidad '{monto}' insertados en la fila {current_row}")
 
-    workbook.save(excel_path)
-    print("DataFrame saved to Excel file")
-    pyautogui.click(int(screen_width * 0.21), int(screen_height * 0.289))
-    time.sleep(0.5)
+        workbook.save(excel_path)
+        print("DataFrame saved to Excel file")
+        pyautogui.click(int(screen_width * 0.21), int(screen_height * 0.289))
+        time.sleep(0.5)
 
 def detect_number_of_pages():
     page_buttons_coords = [
@@ -108,7 +107,7 @@ def detect_number_of_pages():
             break
     return num_pages
 
-def search_color_on_screen(target_color, timeout=2):
+def search_color_on_screen(target_color, current_row, timeout=2):
     start_time = time.time()
     while time.time() - start_time < timeout:
         screenshot = pyautogui.screenshot()
@@ -116,7 +115,7 @@ def search_color_on_screen(target_color, timeout=2):
         for x in range(width):
             for y in range(height):
                 if screenshot.getpixel((x, y)) == target_color:
-                    perform_action_and_insert_value(x, y, target_color)
+                    perform_action_and_insert_value(x, y, target_color, current_row)
                     return (x, y)
         time.sleep(0.5)
     print(f"Timeout reached. Color {target_color} not detected on the screen.")
@@ -162,26 +161,33 @@ def main():
     pyautogui.typewrite(yesterday)
     pyautogui.hotkey('tab')
     pyautogui.hotkey('enter')
-
     num_pages = detect_number_of_pages()
     print(f"Number of pages detected: {num_pages}")
 
+    current_row = start_row
     for valor in df[columna].iloc[fila_inicio - 1:]:
-        for page in range(num_pages):
-            time.sleep(0.5)
-            pyautogui.hotkey('ctrl', 'f')
-            pyautogui.typewrite(str(valor))
-            pyautogui.press('enter')
-            pyautogui.press('enter')
-            time.sleep(0.5)
-            if search_color_on_screen((255, 150, 50)):
-                print(f"Match found for {valor} on page {page + 1}")
+        match_found = False
+        while not match_found:
+            for page in range(num_pages):
+                time.sleep(0.5)
+                pyautogui.hotkey('ctrl', 'f')
+                pyautogui.typewrite(str(valor))
+                pyautogui.press('enter')
+                pyautogui.press('enter')
+                time.sleep(0.5)
+                if search_color_on_screen((255, 150, 50), current_row):
+                    print(f"Match found for {valor} on page {page + 1}")
+                    match_found = True
+                    break
+                else:
+                    pyautogui.scroll(-4000)
+                    time.sleep(0.5)
+                    go_to_next_page(page)
+                    time.sleep(0.5)
+                    print(f"No match found for {valor} on page {page + 1}, moving to next page")
+            if not match_found:
+                print(f"Value {valor} not found, moving to the next cell")
+                current_row += 1
                 break
-            else:
-                pyautogui.scroll(-4000)
-                time.sleep(0.5)
-                go_to_next_page(page)
-                time.sleep(0.5)
-                print(f"No match found for {valor} on page {page + 1}, moving to next page")
 
 main()
