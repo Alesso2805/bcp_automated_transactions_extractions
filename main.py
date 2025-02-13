@@ -28,10 +28,18 @@ start_row = 8
 screen_width, screen_height = pyautogui.size()
 print(f"Resolución de pantalla detectada: {screen_width}x{screen_height}")
 
-def buscar_y_extraer_valores(valor, df):
-    fila = df[df['Dni'] == valor]
+def buscar_y_extraer_valores(valor, monto, df):
+    print(f"Buscando valores para Dni={valor} y Cantidad={monto}")
+    fila = df[(df['Dni'] == valor) & (df['Cantidad'] == monto)]
     if not fila.empty:
-        return fila['Nombre'].values[0], fila['Codigo Flip'].values[0], fila['Cantidad'].values[0]
+        index = fila.index[0]
+        nombre = fila['Nombre'].values[0]
+        codigo_flip = fila['Codigo Flip'].values[0]
+        cantidad = fila['Cantidad'].values[0]
+        df.drop(index, inplace=True)  # Remove the processed row
+        print(f"Valores extraídos: Nombre={nombre}, Codigo Flip={codigo_flip}, Cantidad={cantidad}")
+        return nombre, codigo_flip, cantidad
+    print(f"No se encontraron valores para Dni={valor} y Cantidad={monto}")
     return None, None, None
 
 def focus_existing_window(title):
@@ -57,7 +65,7 @@ def wait_for_color(x, y, target_color, timeout=2):
 def perform_action_and_insert_value(x, y, target_color, current_row):
     print(f"Color {target_color} detected at position ({x}, {y})")
     pyautogui.click(int(screen_width * 0.94), y)
-    wait_for_color(int(screen_width * 0.55), int(screen_height * 0.24), (255, 255, 255))
+    wait_for_color(int(screen_width * 0.196), int(screen_height * 0.34), (0,42,141))
     time.sleep(1.5)
     pyautogui.doubleClick(int(screen_width * 0.484), int(screen_height * 0.813))
     pyautogui.hotkey('ctrl', 'c')
@@ -74,15 +82,24 @@ def perform_action_and_insert_value(x, y, target_color, current_row):
     sheet = workbook['AccountDetail']
     sheet.cell(row=current_row + 1, column=df.columns.get_loc(target_column) + 1).value = copied_value
 
-    nombre, codigo_flip, monto = buscar_y_extraer_valores(copied_value, df_second)
-    if nombre and codigo_flip and monto:
+    monto = df.at[current_row, 'Unnamed: 3']
+    print(f"Obteniendo valores del segundo Excel para Dni={copied_value} y Monto={monto}")
+    nombre, codigo_flip, cantidad = buscar_y_extraer_valores(copied_value, monto, df_second)
+    if nombre and codigo_flip and cantidad:
         df.at[current_row, 'Unnamed: 9'] = nombre
         df.at[current_row, 'Unnamed: 15'] = codigo_flip
-        df.at[current_row, 'Unnamed: 13'] = monto
+        df.at[current_row, 'Unnamed: 13'] = cantidad
         sheet.cell(row=current_row + 1, column=df.columns.get_loc('Unnamed: 9') + 1).value = nombre
         sheet.cell(row=current_row + 1, column=df.columns.get_loc('Unnamed: 15') + 1).value = codigo_flip
-        sheet.cell(row=current_row + 1, column=df.columns.get_loc('Unnamed: 13') + 1).value = monto
-        print(f"Nombre '{nombre}', Codigo Flip '{codigo_flip}' y Cantidad '{monto}' insertados en la fila {current_row}")
+        sheet.cell(row=current_row + 1, column=df.columns.get_loc('Unnamed: 13') + 1).value = cantidad
+        print(f"Nombre '{nombre}', Codigo Flip '{codigo_flip}' y Cantidad '{cantidad}' insertados en la fila {current_row}")
+    else:
+        # Fill empty cells with "PENDIENTE"
+        columns_to_check = ['Unnamed: 9', 'Unnamed: 15', 'Unnamed: 13']
+        for col in columns_to_check:
+            df.at[current_row, col] = 'PENDIENTE'
+        sheet.cell(row=current_row + 1, column=df.columns.get_loc(col) + 1).value = 'PENDIENTE'
+        print(f"Valores no encontrados, se insertó 'PENDIENTE' en las columnas designadas para la fila {current_row}")
 
         workbook.save(excel_path)
         print("DataFrame saved to Excel file")
