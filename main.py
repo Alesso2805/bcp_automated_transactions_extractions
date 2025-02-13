@@ -11,7 +11,7 @@ import win32con
 import pyautogui
 import pyperclip
 
-two_yesterday = (datetime.now() - timedelta(days=1)).strftime("%d%m%Y")
+two_yesterday = (datetime.now() - timedelta(days=2)).strftime("%d%m%Y")
 yesterday = (datetime.now() - timedelta(days=1)).strftime("%d%m%Y")
 
 excel_path = rf'C:\Users\Flip\Desktop\Caja - {two_yesterday} - Agresivo.xlsx'
