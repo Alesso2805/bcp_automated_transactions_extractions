@@ -11,8 +11,8 @@ import win32con
 import pyautogui
 import pyperclip
 
-two_yesterday = (datetime.now() - timedelta(days=3)).strftime("%d%m%Y")
-yesterday = (datetime.now() - timedelta(days=2)).strftime("%d%m%Y")
+two_yesterday = (datetime.now() - timedelta(days=1)).strftime("%d%m%Y")
+yesterday = (datetime.now() - timedelta(days=1)).strftime("%d%m%Y")
 
 excel_path = rf'C:\Users\Flip\Desktop\Caja - {two_yesterday} - Agresivo.xlsx'
 second_excel_path = rf'C:\Users\Flip\Desktop\Solicitudes - {two_yesterday} - AGR.xlsx'
@@ -36,7 +36,16 @@ def buscar_y_extraer_valores(valor, monto, df):
         nombre = fila['Nombre'].values[0]
         codigo_flip = fila['Codigo Flip'].values[0]
         cantidad = fila['Cantidad'].values[0]
+
+        # Mark the row as processed
         df.at[index, 'Procesado'] = 'SI'
+
+        # Save the changes to the Excel file
+        workbook = load_workbook(second_excel_path)
+        sheet = workbook['Sheet1']
+        sheet.cell(row=index + 2, column=df.columns.get_loc('Procesado') + 1).value = 'SI'
+        workbook.save(second_excel_path)
+
         print(f"Valores extraídos: Nombre={nombre}, Codigo Flip={codigo_flip}, Cantidad={cantidad}")
         return nombre, codigo_flip, cantidad
     print(f"No se encontraron valores para Dni={valor}, Cantidad={monto}, y Procesado='NO'")
@@ -82,7 +91,7 @@ def perform_action_and_insert_value(x, y, target_color, current_row):
     sheet = workbook['AccountDetail']
     sheet.cell(row=current_row + 1, column=df.columns.get_loc(target_column) + 1).value = copied_value
 
-    monto = df.at[current_row - 1, 'Unnamed: 3']
+    monto = df.at[current_row, 'Unnamed: 3']
     print(f"Obteniendo valores del segundo Excel para Dni={copied_value} y Monto={monto}")
     nombre, codigo_flip, cantidad = buscar_y_extraer_valores(copied_value, monto, df_second)
     if nombre and codigo_flip and cantidad:
@@ -91,11 +100,17 @@ def perform_action_and_insert_value(x, y, target_color, current_row):
         df.at[current_row, 'Unnamed: 13'] = cantidad
         sheet.cell(row=current_row + 1, column=df.columns.get_loc('Unnamed: 9') + 1).value = nombre
         sheet.cell(row=current_row + 1, column=df.columns.get_loc('Unnamed: 15') + 1).value = codigo_flip
-        sheet.cell(row=current_row + 1, column = df.columns.get_loc('Unnamed: 13') + 1).value = cantidad
-
+        sheet.cell(row=current_row + 1, column=df.columns.get_loc('Unnamed: 13') + 1).value = cantidad
         print(f"Nombre '{nombre}', Codigo Flip '{codigo_flip}' y Cantidad '{cantidad}' insertados en la fila {current_row}")
-        workbook.save(excel_path)
-        print("DataFrame saved to Excel file")
+    else:
+        columns_to_check = ['Unnamed: 9', 'Unnamed: 15', 'Unnamed: 13']
+        for col in columns_to_check:
+            df.at[current_row, col] = 'PENDIENTE'
+            sheet.cell(row=current_row + 1, column=df.columns.get_loc(col) + 1).value = 'PENDIENTE'
+        print(f"Valores no encontrados, se insertó 'PENDIENTE' en las columnas designadas para la fila {current_row}")
+
+    workbook.save(excel_path)
+    print("DataFrame saved to Excel file")
     pyautogui.click(int(screen_width * 0.21), int(screen_height * 0.289))
     time.sleep(0.5)
 
