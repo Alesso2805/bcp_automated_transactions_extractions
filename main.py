@@ -1,9 +1,14 @@
 import os
+
+import openpyxl
 import pandas as pd
 import re
 import time
 from datetime import datetime, timedelta
 from openpyxl.reader.excel import load_workbook
+from openpyxl.styles import Alignment
+from pdfminer.image import align32
+
 import config as CONFIG
 import pygetwindow as gw
 import win32gui
@@ -11,8 +16,8 @@ import win32con
 import pyautogui
 import pyperclip
 
-two_yesterday = (datetime.now() - timedelta(days=1)).strftime("%d%m%Y")
-yesterday = (datetime.now() - timedelta(days=1)).strftime("%d%m%Y")
+two_yesterday = (datetime.now() - timedelta(days=3)).strftime("%d%m%Y")
+yesterday = (datetime.now() - timedelta(days=2)).strftime("%d%m%Y")
 
 excel_path = rf'C:\Users\Flip\Desktop\Caja - {two_yesterday} - Agresivo.xlsx'
 second_excel_path = rf'C:\Users\Flip\Desktop\Solicitudes - {two_yesterday} - AGR.xlsx'
@@ -91,7 +96,7 @@ def perform_action_and_insert_value(x, y, target_color, current_row):
     sheet = workbook['AccountDetail']
     sheet.cell(row=current_row + 1, column=df.columns.get_loc(target_column) + 1).value = copied_value
 
-    monto = df.at[current_row, 'Unnamed: 3']
+    monto = df.at[current_row - 1, 'Unnamed: 3']
     print(f"Obteniendo valores del segundo Excel para Dni={copied_value} y Monto={monto}")
     nombre, codigo_flip, cantidad = buscar_y_extraer_valores(copied_value, monto, df_second)
     if nombre and codigo_flip and cantidad:
@@ -114,25 +119,6 @@ def perform_action_and_insert_value(x, y, target_color, current_row):
     pyautogui.click(int(screen_width * 0.21), int(screen_height * 0.289))
     time.sleep(0.5)
 
-def detect_number_of_pages():
-    page_buttons_coords = [
-            (screen_width * 0.51, screen_height * 0.82),
-            (screen_width * 0.54, screen_height * 0.82),
-            (screen_width * 0.57, screen_height * 0.82),
-            (screen_width * 0.60, screen_height * 0.82),
-            (screen_width * 0.63, screen_height * 0.82),
-            (screen_width * 0.66, screen_height * 0.82)
-    ]
-
-    num_pages = 0
-    for coord in page_buttons_coords:
-        try:
-            pyautogui.click(coord)
-            num_pages += 1
-        except:
-            break
-    return num_pages
-
 def search_color_on_screen(target_color, current_row, timeout=2):
     start_time = time.time()
     while time.time() - start_time < timeout:
@@ -147,19 +133,36 @@ def search_color_on_screen(target_color, current_row, timeout=2):
     print(f"Timeout reached. Color {target_color} not detected on the screen.")
     return None
 
-def go_to_next_page(current_page):
-    page_buttons_coords = [
-        (screen_width * 0.51, screen_height * 0.82),
-        (screen_width * 0.54, screen_height * 0.82),
-        (screen_width * 0.57, screen_height * 0.82),
-        (screen_width * 0.60, screen_height * 0.82),
-        (screen_width * 0.63, screen_height * 0.82),
-        (screen_width * 0.66, screen_height * 0.82)
-    ]
-    if current_page < len(page_buttons_coords):
-        pyautogui.click(page_buttons_coords[current_page])
+
+def go_to_next_page(current_page, num_pages):
+    base_x = screen_width * 0.51
+    y = 881  # Fixed y-coordinate for the buttons
+    target_color = (255, 120, 0)  # RGB color to detect the button for page 1
+
+    # Find the button for page 1
+    for x in range(int(screen_width * 0.51), screen_width, 1):
+        if pyautogui.pixelMatchesColor(x, y, target_color):
+            base_x = x
+            pyautogui.moveTo(base_x, y)
+            break
     else:
-        print("No more pages to navigate.")
+        print("Button for page 1 not found.")
+        return None, None
+
+    # Click the button for the current page
+    x = base_x + (current_page * 60)
+    if pyautogui.onScreen(x, y):
+        pyautogui.moveTo(x, y)
+        pyautogui.click(x, y)
+        time.sleep(1)
+        pyautogui.hotkey('ctrl', 'f')
+        pyautogui.hotkey('enter')
+        pyautogui.hotkey('enter')
+        time.sleep(0.5)
+    else:
+        print(f"Button for page {current_page + 1} is not on screen.")
+
+    return base_x, y
 
 def main():
     if focus_existing_window("Nuevo Telecrédito"):
@@ -173,6 +176,7 @@ def main():
     pyautogui.click(int(screen_width * 0.50), int(screen_height * 0.24))
     wait_for_color(int(screen_width * 0.39), int(screen_height * 0.74), (232, 246, 252))
     pyautogui.scroll(-500)
+    time.sleep(0.1)
     pyautogui.click(int(screen_width * 0.25), int(screen_height * 0.60))
     pyautogui.click(int(screen_width * 0.25), int(screen_height * 0.30))
     wait_for_color(int(screen_width * 0.316), int(screen_height * 0.804), (212, 102, 40))
@@ -187,10 +191,23 @@ def main():
     pyautogui.typewrite(yesterday)
     pyautogui.hotkey('tab')
     pyautogui.hotkey('enter')
-    num_pages = detect_number_of_pages()
-    print(f"Number of pages detected: {num_pages}")
+    wait_for_color(int(screen_width * 0.823), int(screen_height * 0.878), (96,108,127))
+    pyautogui.scroll(-4000)
+    pyautogui.hotkey('ctrl', 'a')
+    pyautogui.hotkey('ctrl', 'c')
+    copied_text = pyperclip.paste()
+    page_numbers = re.findall(r'\d+', copied_text)
+    if page_numbers:
+        num_pages = int(page_numbers[-1])
+        print(f"Number of pages detected: {num_pages}")
+    else:
+        print("No page numbers found in the copied text.")
 
     current_row = start_row
+    base_x, y = go_to_next_page(0, num_pages)  # Get the coordinates for page 1
+    if base_x is None or y is None:
+        return
+
     for valor in df[columna].iloc[fila_inicio - 1:]:
         match_found = False
         while not match_found:
@@ -208,12 +225,69 @@ def main():
                 else:
                     pyautogui.scroll(-4000)
                     time.sleep(0.5)
-                    go_to_next_page(page)
+                    go_to_next_page(page, num_pages)
                     time.sleep(0.5)
                     print(f"No match found for {valor} on page {page + 1}, moving to next page")
             if not match_found:
                 print(f"Value {valor} not found, moving to the next cell")
+                pyautogui.moveTo(base_x, y)  # Click on the coordinates of page 1
+                pyautogui.click(base_x, y)
                 current_row += 1
                 break
 
-main()
+    # Filter rows with 'PENDIENTE' and save to a new sheet
+    pendientes_df = df[df.isin(['PENDIENTE']).any(axis=1)]
+    custom_headers = ['Fecha', 'Fecha Valuta', 'Descripción Operación', 'Monto', 'Sucursal - Agencia', 'N° Operación',
+                      'Usuario', 'x', 'x', 'NOMBRE', 'x', 'DNI', 'x', 'Monto', 'x', 'CODIGO FLIP']
+    pendientes_df.columns = custom_headers
+
+    with pd.ExcelWriter(excel_path, engine='openpyxl', mode='a') as writer:
+        pendientes_df.to_excel(writer, sheet_name='PENDIENTES', index=False)
+
+    # Load the workbook and select the sheet
+    workbook = openpyxl.load_workbook(excel_path)
+    sheet = workbook['PENDIENTES']
+
+    # Center align all cells and adjust column widths
+    for col in sheet.columns:
+        max_length = 0
+        column = col[0].column_letter  # Get the column name
+        for cell in col:
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+            if len(str(cell.value)) > max_length:
+                max_length = len(str(cell.value))
+        adjusted_width = (max_length + 2)
+        sheet.column_dimensions[column].width = adjusted_width
+
+    # Save the workbook
+    workbook.save(excel_path)
+    print("Rows with 'PENDIENTE' moved to a new sheet named 'PENDIENTES' with custom headers and formatted cells")
+
+# main()
+
+pendientes_df = df[df.isin(['PENDIENTE']).any(axis=1)]
+custom_headers = ['Fecha', 'Fecha Valuta', 'Descripción Operación', 'Monto', 'Sucursal - Agencia', 'N° Operación',
+                      'Usuario', 'x', 'x', 'NOMBRE', 'x', 'DNI', 'x', 'Monto', 'x', 'CODIGO FLIP']
+pendientes_df.columns = custom_headers
+
+with pd.ExcelWriter(excel_path, engine='openpyxl', mode='a') as writer:
+     pendientes_df.to_excel(writer, sheet_name='PENDIENTES', index=False)
+
+    # Load the workbook and select the sheet
+workbook = openpyxl.load_workbook(excel_path)
+sheet = workbook['PENDIENTES']
+
+    # Center align all cells and adjust column widths
+for col in sheet.columns:
+    max_length = 0
+    column = col[0].column_letter  # Get the column name
+    for cell in col:
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+        if len(str(cell.value)) > max_length:
+            max_length = len(str(cell.value))
+    adjusted_width = (max_length + 2)
+    sheet.column_dimensions[column].width = adjusted_width
+
+    # Save the workbook
+workbook.save(excel_path)
+print("Rows with 'PENDIENTE' moved to a new sheet named 'PENDIENTES' with custom headers and formatted cells")
