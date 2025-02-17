@@ -79,8 +79,7 @@ def wait_for_color(x, y, target_color, timeout=2):
 def perform_action_and_insert_value(x, y, target_color, current_row):
     print(f"Color {target_color} detected at position ({x}, {y})")
     pyautogui.click(int(screen_width * 0.94), y)
-    wait_for_color(int(screen_width * 0.196), int(screen_height * 0.34), (0, 42, 141))
-    time.sleep(1.5)
+    wait_for_color(int(screen_width * 0.746), int(screen_height * 0.412), (96,108,127))
     pyautogui.doubleClick(int(screen_width * 0.484), int(screen_height * 0.813))
     pyautogui.hotkey('ctrl', 'c')
     copied_value = pyperclip.paste()
