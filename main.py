@@ -263,31 +263,4 @@ def main():
     workbook.save(excel_path)
     print("Rows with 'PENDIENTE' moved to a new sheet named 'PENDIENTES' with custom headers and formatted cells")
 
-# main()
-
-pendientes_df = df[df.isin(['PENDIENTE']).any(axis=1)]
-custom_headers = ['Fecha', 'Fecha Valuta', 'Descripción Operación', 'Monto', 'Sucursal - Agencia', 'N° Operación',
-                      'Usuario', 'x', 'x', 'NOMBRE', 'x', 'DNI', 'x', 'Monto', 'x', 'CODIGO FLIP']
-pendientes_df.columns = custom_headers
-
-with pd.ExcelWriter(excel_path, engine='openpyxl', mode='a') as writer:
-     pendientes_df.to_excel(writer, sheet_name='PENDIENTES', index=False)
-
-    # Load the workbook and select the sheet
-workbook = openpyxl.load_workbook(excel_path)
-sheet = workbook['PENDIENTES']
-
-    # Center align all cells and adjust column widths
-for col in sheet.columns:
-    max_length = 0
-    column = col[0].column_letter  # Get the column name
-    for cell in col:
-        cell.alignment = Alignment(horizontal='center', vertical='center')
-        if len(str(cell.value)) > max_length:
-            max_length = len(str(cell.value))
-    adjusted_width = (max_length + 2)
-    sheet.column_dimensions[column].width = adjusted_width
-
-    # Save the workbook
-workbook.save(excel_path)
-print("Rows with 'PENDIENTE' moved to a new sheet named 'PENDIENTES' with custom headers and formatted cells")
+main()
