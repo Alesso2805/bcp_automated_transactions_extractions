@@ -71,27 +71,60 @@ def wait_for_color(x, y, target_color, timeout=2):
     print("Tiempo de espera agotado. No se detectó el color.")
     return False
 
+def extraer_datos(texto: str):
+    # Buscar número de operación
+    match_operacion = re.search(r'Número de operación\s*\n\s*(\d+)', texto)
+    numero_operacion = match_operacion.group(1) if match_operacion else None
+
+    # Buscar monto
+    match_monto = re.search(r'Monto\s*\n\s*\$ ([\d,]+\.\d{2})', texto)
+    monto = match_monto.group(1) if match_monto else None
+
+    # Buscar DNI
+    match_dni = re.search(r'Nro documento\s*\n\s*(\d{8})', texto)
+    dni = match_dni.group(1) if match_dni else None
+
+    # Si falta alguno de los datos, devolver None
+    if not (numero_operacion and monto and dni):
+        return None
+
+    return {
+        "numero_operacion": numero_operacion,
+        "monto": monto,
+        "dni": dni
+    }
+
 def perform_action_and_insert_value(x, y, target_color, current_row):
     print(f"Color {target_color} detected at position ({x}, {y})")
     pyautogui.click(int(screen_width * 0.94), y)
     wait_for_color(int(screen_width * 0.746), int(screen_height * 0.412), (96,108,127))
-    pyautogui.doubleClick(int(screen_width * 0.484), int(screen_height * 0.813))
+    pyautogui.hotkey('ctrl', 'a')
     pyautogui.hotkey('ctrl', 'c')
     copied_value = pyperclip.paste()
     print(f"Copied value: {copied_value}")
 
+    # Extract data using the extraer_datos function
+    datos = extraer_datos(copied_value)
+    if datos:
+        numero_operacion = datos["numero_operacion"]
+        monto = datos["monto"]
+        dni = datos["dni"]
+        print(f"Numero de Operacion: {numero_operacion}, Monto: {monto}, DNI: {dni}")
+    else:
+        print("No se pudieron extraer todos los datos necesarios.")
+
     while current_row < len(df) and pd.notna(df.at[current_row, target_column]):
         current_row += 1
 
-    df.at[current_row, target_column] = copied_value
+    df.at[current_row, target_column] = datos["dni"]
     print(f"Value '{copied_value}' inserted into row {current_row}, column {target_column}")
 
     workbook = load_workbook(excel_path)
     sheet = workbook['AccountDetail']
-    sheet.cell(row=current_row + 1, column=df.columns.get_loc(target_column) + 1).value = copied_value
+    sheet.cell(row=current_row + 1, column=df.columns.get_loc(target_column) + 1).value = datos["dni"]
 
     monto = df.at[current_row - 1, 'Unnamed: 3']
-    print(f"Obteniendo valores del segundo Excel para Dni={copied_value} y Monto={monto}")
+    print(f"Obteniendo valores del segundo Excel para Dni={datos["dni"]}, Nro Operacion={datos["numero-operacion"]} y Monto={datos["monto"]}")
     nombre, codigo_flip, cantidad = buscar_y_extraer_valores(copied_value, monto, df_second)
     if nombre and codigo_flip and cantidad:
         df.at[current_row, 'Unnamed: 9'] = nombre
