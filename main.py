@@ -1,23 +1,18 @@
-import os
-
-import openpyxl
-import pandas as pd
 import re
 import time
 from datetime import datetime, timedelta
+import openpyxl
+import pandas as pd
+import pyautogui
+import pygetwindow as gw
+import pyperclip
+import win32con
+import win32gui
 from openpyxl.reader.excel import load_workbook
 from openpyxl.styles import Alignment
-from pdfminer.image import align32
 
-import config as CONFIG
-import pygetwindow as gw
-import win32gui
-import win32con
-import pyautogui
-import pyperclip
-
-two_yesterday = (datetime.now() - timedelta(days=3)).strftime("%d%m%Y")
-yesterday = (datetime.now() - timedelta(days=2)).strftime("%d%m%Y")
+two_yesterday = (datetime.now() - timedelta(days=2)).strftime("%d%m%Y")
+yesterday = (datetime.now() - timedelta(days=1)).strftime("%d%m%Y")
 
 excel_path = rf'C:\Users\Flip\Desktop\Caja - {two_yesterday} - Agresivo.xlsx'
 second_excel_path = rf'C:\Users\Flip\Desktop\Solicitudes - {two_yesterday} - AGR.xlsx'
@@ -105,7 +100,8 @@ def perform_action_and_insert_value(x, y, target_color, current_row):
         sheet.cell(row=current_row + 1, column=df.columns.get_loc('Unnamed: 9') + 1).value = nombre
         sheet.cell(row=current_row + 1, column=df.columns.get_loc('Unnamed: 15') + 1).value = codigo_flip
         sheet.cell(row=current_row + 1, column=df.columns.get_loc('Unnamed: 13') + 1).value = cantidad
-        print(f"Nombre '{nombre}', Codigo Flip '{codigo_flip}' y Cantidad '{cantidad}' insertados en la fila {current_row}")
+        print(
+            f"Nombre '{nombre}', Codigo Flip '{codigo_flip}' y Cantidad '{cantidad}' insertados en la fila {current_row}")
     else:
         columns_to_check = ['Unnamed: 9', 'Unnamed: 15', 'Unnamed: 13']
         for col in columns_to_check:
@@ -133,33 +129,47 @@ def search_color_on_screen(target_color, current_row, timeout=2):
     return None
 
 
+# Variable global para almacenar la coordenada base del primer botón
+base_x = None
+
 def go_to_next_page(current_page, num_pages):
-    base_x = screen_width * 0.51
-    y = 881  # Fixed y-coordinate for the buttons
-    target_color = (255, 120, 0)  # RGB color to detect the button for page 1
+    global base_x  # Usamos la variable global para mantener la posición del primer botón
+    y = 881  # Coordenada Y fija
+    target_color = (255, 120, 0)  # Color objetivo
 
-    # Find the button for page 1
-    for x in range(int(screen_width * 0.51), screen_width, 1):
-        if pyautogui.pixelMatchesColor(x, y, target_color):
-            base_x = x
-            pyautogui.moveTo(base_x, y)
-            break
-    else:
-        print("Button for page 1 not found.")
-        return None, None
+    # Si no se ha detectado aún, buscamos el primer botón y guardamos su posición
+    if base_x is None:
+        print("Buscando el botón de la página 1...")
+        screen_width, screen_height = pyautogui.size()  # Obtener el tamaño de la pantalla
+        for x in range(int(screen_width * 0.49), screen_width):
+            try:
+                if pyautogui.pixelMatchesColor(x, y, target_color, tolerance=10):
+                    base_x = x  # Guardamos la posición del primer botón
+                    pyautogui.moveTo(base_x, y)
+                    print(f"Botón de la página 1 encontrado en ({base_x}, {y})")
+                    break
+            except Exception as e:
+                print(f"Error al obtener el color en ({x}, {y}): {e}")
+                continue
+        else:
+            print("No se encontró el botón de la página 1.")
+            return None, None
 
-    # Click the button for the current page
-    x = base_x + (current_page * 60)
+    # Calcular la posición del botón de la siguiente página basándose en base_x
+    spacing = 60  # Ajusta este valor si es necesario
+    x = base_x + (current_page * spacing)
+
     if pyautogui.onScreen(x, y):
         pyautogui.moveTo(x, y)
         pyautogui.click(x, y)
+        print(f"Haciendo clic en la página {current_page + 1} en ({x}, {y})")
         time.sleep(1)
         pyautogui.hotkey('ctrl', 'f')
         pyautogui.hotkey('enter')
         pyautogui.hotkey('enter')
         time.sleep(0.5)
     else:
-        print(f"Button for page {current_page + 1} is not on screen.")
+        print(f"El botón de la página {current_page + 1} no está en la pantalla.")
 
     return base_x, y
 
@@ -206,33 +216,38 @@ def main():
     base_x, y = go_to_next_page(0, num_pages)  # Get the coordinates for page 1
     if base_x is None or y is None:
         return
-
     for valor in df[columna].iloc[fila_inicio - 1:]:
         match_found = False
-        while not match_found:
-            for page in range(num_pages):
-                time.sleep(0.5)
-                pyautogui.hotkey('ctrl', 'f')
-                pyautogui.typewrite(str(valor))
-                pyautogui.press('enter')
-                pyautogui.press('enter')
-                time.sleep(0.5)
-                if search_color_on_screen((255, 150, 50), current_row):
-                    print(f"Match found for {valor} on page {page + 1}")
-                    match_found = True
+        monto = df.at[current_row - 1, 'Unnamed: 3']
+        if monto < 0:
+            print(f"Skipping negative monto: {monto}")
+            current_row += 1
+            continue
+        else:
+            while not match_found:
+                for page in range(num_pages):
+                    time.sleep(0.5)
+                    pyautogui.hotkey('ctrl', 'f')
+                    pyautogui.typewrite(str(valor))
+                    pyautogui.press('enter')
+                    pyautogui.press('enter')
+                    time.sleep(0.5)
+                    if search_color_on_screen((255, 150, 50), current_row):
+                        print(f"Match found for {valor} on page {page + 1}")
+                        match_found = True
+                        break
+                    else:
+                        pyautogui.scroll(-4000)
+                        time.sleep(0.5)
+                        go_to_next_page(page, num_pages)
+                        time.sleep(0.5)
+                        print(f"No match found for {valor} on page {page + 1}, moving to next page")
+                if not match_found:
+                    print(f"Value {valor} not found, moving to the next cell")
+                    pyautogui.moveTo(base_x, y)  # Click on the coordinates of page 1
+                    pyautogui.click(base_x, y)
+                    current_row += 1
                     break
-                else:
-                    pyautogui.scroll(-4000)
-                    time.sleep(0.5)
-                    go_to_next_page(page, num_pages)
-                    time.sleep(0.5)
-                    print(f"No match found for {valor} on page {page + 1}, moving to next page")
-            if not match_found:
-                print(f"Value {valor} not found, moving to the next cell")
-                pyautogui.moveTo(base_x, y)  # Click on the coordinates of page 1
-                pyautogui.click(base_x, y)
-                current_row += 1
-                break
 
     # Filter rows with 'PENDIENTE' and save to a new sheet
     pendientes_df = df[df.isin(['PENDIENTE']).any(axis=1)]
