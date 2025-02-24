@@ -10,9 +10,13 @@ import win32con
 import win32gui
 from openpyxl.reader.excel import load_workbook
 from openpyxl.styles import Alignment
+import enter_telecredito
 
-two_yesterday = (datetime.now() - timedelta(days=2)).strftime("%d%m%Y")
-yesterday = (datetime.now() - timedelta(days=1)).strftime("%d%m%Y")
+# We log to telecredito and open the window
+# enter_telecredito.login_to_telecredito()
+
+two_yesterday = (datetime.now() - timedelta(days=5)).strftime("%d%m%Y")
+yesterday = (datetime.now() - timedelta(days=4)).strftime("%d%m%Y")
 
 excel_path = rf'C:\Users\Flip\Desktop\Caja - {two_yesterday} - Agresivo.xlsx'
 second_excel_path = rf'C:\Users\Flip\Desktop\Solicitudes - {two_yesterday} - AGR.xlsx'
@@ -112,20 +116,18 @@ def perform_action_and_insert_value(x, y, target_color, current_row):
         print(f"Numero de Operacion: {numero_operacion}, Monto: {monto}, DNI: {dni}")
     else:
         print("No se pudieron extraer todos los datos necesarios.")
+        return
 
-    while current_row < len(df) and pd.notna(df.at[current_row, target_column]):
+    while current_row < (len(df) + 2) and pd.notna(df.at[current_row, target_column]):
         current_row += 1
-
-    df.at[current_row, target_column] = datos["dni"]
-    print(f"Value '{copied_value}' inserted into row {current_row}, column {target_column}")
-
+    df.at[current_row, target_column] = dni
+    print(f"Value '{dni}' inserted into row {current_row}, column {target_column}")
     workbook = load_workbook(excel_path)
     sheet = workbook['AccountDetail']
-    sheet.cell(row=current_row + 1, column=df.columns.get_loc(target_column) + 1).value = datos["dni"]
-
+    sheet.cell(row=current_row + 1, column=df.columns.get_loc(target_column) + 1).value = dni
     monto = df.at[current_row - 1, 'Unnamed: 3']
-    print(f"Obteniendo valores del segundo Excel para Dni={datos["dni"]}, Nro Operacion={datos["numero-operacion"]} y Monto={datos["monto"]}")
-    nombre, codigo_flip, cantidad = buscar_y_extraer_valores(copied_value, monto, df_second)
+    print(f"Obteniendo valores del segundo Excel para Dni={dni}, Nro Operacion={numero_operacion} y Monto={monto}")
+    nombre, codigo_flip, cantidad = buscar_y_extraer_valores(dni, monto, df_second)
     if nombre and codigo_flip and cantidad:
         df.at[current_row, 'Unnamed: 9'] = nombre
         df.at[current_row, 'Unnamed: 15'] = codigo_flip
@@ -133,8 +135,7 @@ def perform_action_and_insert_value(x, y, target_color, current_row):
         sheet.cell(row=current_row + 1, column=df.columns.get_loc('Unnamed: 9') + 1).value = nombre
         sheet.cell(row=current_row + 1, column=df.columns.get_loc('Unnamed: 15') + 1).value = codigo_flip
         sheet.cell(row=current_row + 1, column=df.columns.get_loc('Unnamed: 13') + 1).value = cantidad
-        print(
-            f"Nombre '{nombre}', Codigo Flip '{codigo_flip}' y Cantidad '{cantidad}' insertados en la fila {current_row}")
+        print(f"Nombre '{nombre}', Codigo Flip '{codigo_flip}' y Cantidad '{cantidad}' insertados en la fila {current_row}")
     else:
         columns_to_check = ['Unnamed: 9', 'Unnamed: 15', 'Unnamed: 13']
         for col in columns_to_check:
@@ -147,7 +148,7 @@ def perform_action_and_insert_value(x, y, target_color, current_row):
     pyautogui.click(int(screen_width * 0.21), int(screen_height * 0.289))
     time.sleep(0.5)
 
-def search_color_on_screen(target_color, current_row, timeout=2):
+def search_color_on_screen(target_color, current_row, timeout=3):
     start_time = time.time()
     while time.time() - start_time < timeout:
         screenshot = pyautogui.screenshot()
@@ -160,7 +161,6 @@ def search_color_on_screen(target_color, current_row, timeout=2):
         time.sleep(0.5)
     print(f"Timeout reached. Color {target_color} not detected on the screen.")
     return None
-
 
 # Variable global para almacenar la coordenada base del primer botón
 base_x = None
@@ -189,7 +189,7 @@ def go_to_next_page(current_page, num_pages):
             return None, None
 
     # Calcular la posición del botón de la siguiente página basándose en base_x
-    spacing = 60  # Ajusta este valor si es necesario
+    spacing = 58  # Ajusta este valor si es necesario
     x = base_x + (current_page * spacing)
 
     if pyautogui.onScreen(x, y):
@@ -197,10 +197,6 @@ def go_to_next_page(current_page, num_pages):
         pyautogui.click(x, y)
         print(f"Haciendo clic en la página {current_page + 1} en ({x}, {y})")
         time.sleep(1)
-        pyautogui.hotkey('ctrl', 'f')
-        pyautogui.hotkey('enter')
-        pyautogui.hotkey('enter')
-        time.sleep(0.5)
     else:
         print(f"El botón de la página {current_page + 1} no está en la pantalla.")
 
@@ -240,7 +236,7 @@ def main():
     copied_text = pyperclip.paste()
     page_numbers = re.findall(r'\d+', copied_text)
     if page_numbers:
-        num_pages = int(page_numbers[-1])
+        num_pages = int(page_numbers[-1]) + 1
         print(f"Number of pages detected: {num_pages}")
     else:
         print("No page numbers found in the copied text.")
@@ -251,36 +247,40 @@ def main():
         return
     for valor in df[columna].iloc[fila_inicio - 1:]:
         match_found = False
-        monto = df.at[current_row - 1, 'Unnamed: 3']
-        if monto < 0:
-            print(f"Skipping negative monto: {monto}")
-            current_row += 1
-            continue
-        else:
-            while not match_found:
-                for page in range(num_pages):
-                    time.sleep(0.5)
-                    pyautogui.hotkey('ctrl', 'f')
-                    pyautogui.typewrite(str(valor))
-                    pyautogui.press('enter')
-                    pyautogui.press('enter')
-                    time.sleep(0.5)
-                    if search_color_on_screen((255, 150, 50), current_row):
-                        print(f"Match found for {valor} on page {page + 1}")
-                        match_found = True
-                        break
-                    else:
-                        pyautogui.scroll(-4000)
-                        time.sleep(0.5)
-                        go_to_next_page(page, num_pages)
-                        time.sleep(0.5)
-                        print(f"No match found for {valor} on page {page + 1}, moving to next page")
-                if not match_found:
-                    print(f"Value {valor} not found, moving to the next cell")
-                    pyautogui.moveTo(base_x, y)  # Click on the coordinates of page 1
-                    pyautogui.click(base_x, y)
-                    current_row += 1
+        while True:
+            monto = df.at[current_row - 1, 'Unnamed: 3']  # Ensure the correct row is accessed
+            numero_operacion = df.at[current_row - 1, 'Unnamed: 5']  # Access the numero_operacion from the current row
+            if monto < 0:
+                print(f"Skipping negative monto: {monto}")
+                print(f"Skipping numero de operacion {numero_operacion}")
+                current_row += 1
+                continue
+            break
+        while not match_found:
+            for page in range(num_pages):
+                time.sleep(0.5)
+                pyautogui.hotkey('ctrl', 'f')
+                pyautogui.typewrite(str(numero_operacion))
+                pyautogui.press('enter')
+                pyautogui.press('enter')
+                pyautogui.scroll(40)
+                time.sleep(0.5)
+                if search_color_on_screen((255, 150, 50), current_row):
+                    print(f"Match found for {valor} on page {page + 1}")
+                    match_found = True
                     break
+                else:
+                    pyautogui.scroll(-4000)
+                    time.sleep(0.5)
+                    go_to_next_page(page, num_pages)
+                    time.sleep(0.5)
+                    print(f"No match found for {valor} on page {page + 1}, moving to next page")
+            if not match_found:
+                print(f"Value {valor} not found, moving to the next cell")
+                pyautogui.moveTo(base_x, y)  # Click on the coordinates of page 1
+                pyautogui.click(base_x, y)
+                current_row += 1
+                break
 
     # Filter rows with 'PENDIENTE' and save to a new sheet
     pendientes_df = df[df.isin(['PENDIENTE']).any(axis=1)]
