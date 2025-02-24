@@ -245,17 +245,15 @@ def main():
     base_x, y = go_to_next_page(0, num_pages)  # Get the coordinates for page 1
     if base_x is None or y is None:
         return
-    for valor in df[columna].iloc[fila_inicio - 1:]:
+    for index, row in df.iloc[current_row - 1:].iterrows():
+        numero_operacion = df.at[current_row - 1, 'Unnamed: 5']
+        monto = df.at[current_row - 1, 'Unnamed: 3']  # Ensure the correct row is accessed
+        if monto < 0:
+            print(f"Skipping negative monto: {monto}")
+            print(f"Skipping numero de operacion {numero_operacion}")
+            current_row += 1
+            continue
         match_found = False
-        while True:
-            monto = df.at[current_row - 1, 'Unnamed: 3']  # Ensure the correct row is accessed
-            numero_operacion = df.at[current_row - 1, 'Unnamed: 5']  # Access the numero_operacion from the current row
-            if monto < 0:
-                print(f"Skipping negative monto: {monto}")
-                print(f"Skipping numero de operacion {numero_operacion}")
-                current_row += 1
-                continue
-            break
         while not match_found:
             for page in range(num_pages):
                 time.sleep(0.5)
@@ -266,7 +264,7 @@ def main():
                 pyautogui.scroll(40)
                 time.sleep(0.5)
                 if search_color_on_screen((255, 150, 50), current_row):
-                    print(f"Match found for {valor} on page {page + 1}")
+                    print(f"Match found for {numero_operacion} on page {page + 1}")
                     match_found = True
                     break
                 else:
@@ -274,9 +272,9 @@ def main():
                     time.sleep(0.5)
                     go_to_next_page(page, num_pages)
                     time.sleep(0.5)
-                    print(f"No match found for {valor} on page {page + 1}, moving to next page")
+                    print(f"No match found for {numero_operacion} on page {page + 1}, moving to next page")
             if not match_found:
-                print(f"Value {valor} not found, moving to the next cell")
+                print(f"Value {numero_operacion} not found, moving to the next cell")
                 pyautogui.moveTo(base_x, y)  # Click on the coordinates of page 1
                 pyautogui.click(base_x, y)
                 current_row += 1
