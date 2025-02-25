@@ -15,8 +15,8 @@ import enter_telecredito
 # We log to telecredito and open the window
 # enter_telecredito.login_to_telecredito()
 
-two_yesterday = (datetime.now() - timedelta(days=5)).strftime("%d%m%Y")
-yesterday = (datetime.now() - timedelta(days=4)).strftime("%d%m%Y")
+two_yesterday = (datetime.now() - timedelta(days=6)).strftime("%d%m%Y")
+yesterday = (datetime.now() - timedelta(days=5)).strftime("%d%m%Y")
 
 excel_path = rf'C:\Users\Flip\Desktop\Caja - {two_yesterday} - Agresivo.xlsx'
 second_excel_path = rf'C:\Users\Flip\Desktop\Solicitudes - {two_yesterday} - AGR.xlsx'
@@ -32,9 +32,9 @@ start_row = 8
 screen_width, screen_height = pyautogui.size()
 print(f"Resolución de pantalla detectada: {screen_width}x{screen_height}")
 
-def buscar_y_extraer_valores(valor, monto, df):
-    print(f"Buscando valores para Dni={valor}, Cantidad={monto}, y Procesado='NO'")
-    fila = df[(df['Dni'] == valor) & (df['Cantidad'] == monto) & (df['Procesado'] == 'NO')]
+def buscar_y_extraer_valores(valor, monto, numero_operacion, df):
+    print(f"Buscando valores para Dni={valor}, Cantidad={monto}, Nro Operacion={numero_operacion} y Procesado='NO'")
+    fila = df[(df['Dni'] == valor) & (df['Cantidad'] == monto) & (df['Numero Operacion Transferencia']) & (df['Procesado'] == 'NO')]
     if not fila.empty:
         index = fila.index[0]
         nombre = fila['Nombre'].values[0]
@@ -52,7 +52,7 @@ def buscar_y_extraer_valores(valor, monto, df):
 
         print(f"Valores extraídos: Nombre={nombre}, Codigo Flip={codigo_flip}, Cantidad={cantidad}")
         return nombre, codigo_flip, cantidad
-    print(f"No se encontraron valores para Dni={valor}, Cantidad={monto}, y Procesado='NO'")
+    print(f"No se encontraron valores para Dni={valor}, Cantidad={monto}, Nro Operacion={numero_operacion} y Procesado='NO'")
     return None, None, None
 
 def focus_existing_window(title):
@@ -125,9 +125,8 @@ def perform_action_and_insert_value(x, y, target_color, current_row):
     workbook = load_workbook(excel_path)
     sheet = workbook['AccountDetail']
     sheet.cell(row=current_row + 1, column=df.columns.get_loc(target_column) + 1).value = dni
-    monto = df.at[current_row - 1, 'Unnamed: 3']
     print(f"Obteniendo valores del segundo Excel para Dni={dni}, Nro Operacion={numero_operacion} y Monto={monto}")
-    nombre, codigo_flip, cantidad = buscar_y_extraer_valores(dni, monto, df_second)
+    nombre, codigo_flip, cantidad = buscar_y_extraer_valores(dni, monto, numero_operacion, df_second)
     if nombre and codigo_flip and cantidad:
         df.at[current_row, 'Unnamed: 9'] = nombre
         df.at[current_row, 'Unnamed: 15'] = codigo_flip
@@ -246,8 +245,8 @@ def main():
     if base_x is None or y is None:
         return
     for index, row in df.iloc[current_row - 1:].iterrows():
-        numero_operacion = df.at[current_row - 1, 'Unnamed: 5']
-        monto = df.at[current_row - 1, 'Unnamed: 3']  # Ensure the correct row is accessed
+        numero_operacion = row['Unnamed: 5']
+        monto = row['Unnamed: 3']  # Ensure the correct row is accessed
         if monto < 0:
             print(f"Skipping negative monto: {monto}")
             print(f"Skipping numero de operacion {numero_operacion}")
