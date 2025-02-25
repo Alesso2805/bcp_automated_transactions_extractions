@@ -24,8 +24,6 @@ second_excel_path = rf'C:\Users\Flip\Desktop\Solicitudes - {two_yesterday} - AGR
 df = pd.read_excel(excel_path, sheet_name='AccountDetail')
 df_second = pd.read_excel(second_excel_path, sheet_name='Sheet1')
 
-columna = 'Unnamed: 5'
-fila_inicio = 8
 target_column = 'Unnamed: 11'
 start_row = 8
 
@@ -34,7 +32,7 @@ print(f"Resolución de pantalla detectada: {screen_width}x{screen_height}")
 
 def buscar_y_extraer_valores(valor, monto, numero_operacion, df):
     print(f"Buscando valores para Dni={valor}, Cantidad={monto}, Nro Operacion={numero_operacion} y Procesado='NO'")
-    fila = df[(df['Dni'] == valor) & (df['Cantidad'] == monto) & (df['Numero Operacion Transferencia']) & (df['Procesado'] == 'NO')]
+    fila = df[df['Numero Operacion Transferencia'] == numero_operacion]
     if not fila.empty:
         index = fila.index[0]
         nombre = fila['Nombre'].values[0]
@@ -45,6 +43,7 @@ def buscar_y_extraer_valores(valor, monto, numero_operacion, df):
         df.at[index, 'Procesado'] = 'SI'
 
         # Save the changes to the Excel file
+
         workbook = load_workbook(second_excel_path)
         sheet = workbook['Sheet1']
         sheet.cell(row=index + 2, column=df.columns.get_loc('Procesado') + 1).value = 'SI'
@@ -128,6 +127,7 @@ def perform_action_and_insert_value(x, y, target_color, current_row):
     print(f"Obteniendo valores del segundo Excel para Dni={dni}, Nro Operacion={numero_operacion} y Monto={monto}")
     nombre, codigo_flip, cantidad = buscar_y_extraer_valores(dni, monto, numero_operacion, df_second)
     if nombre and codigo_flip and cantidad:
+        print("La fila actual es: ", current_row)
         df.at[current_row, 'Unnamed: 9'] = nombre
         df.at[current_row, 'Unnamed: 15'] = codigo_flip
         df.at[current_row, 'Unnamed: 13'] = cantidad
@@ -140,6 +140,7 @@ def perform_action_and_insert_value(x, y, target_color, current_row):
         for col in columns_to_check:
             df.at[current_row, col] = 'PENDIENTE'
             sheet.cell(row=current_row + 1, column=df.columns.get_loc(col) + 1).value = 'PENDIENTE'
+        current_row += 1
         print(f"Valores no encontrados, se insertó 'PENDIENTE' en las columnas designadas para la fila {current_row}")
 
     workbook.save(excel_path)
@@ -251,6 +252,7 @@ def main():
             print(f"Skipping negative monto: {monto}")
             print(f"Skipping numero de operacion {numero_operacion}")
             current_row += 1
+            print(f"Fila actualizada al comenzar: {current_row}")
             continue
         match_found = False
         while not match_found:
@@ -264,6 +266,8 @@ def main():
                 time.sleep(0.5)
                 if search_color_on_screen((255, 150, 50), current_row):
                     print(f"Match found for {numero_operacion} on page {page + 1}")
+                    current_row += 1
+                    print(f"Fila actualizada al terminar: {current_row}")
                     match_found = True
                     break
                 else:
