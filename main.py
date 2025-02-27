@@ -1,7 +1,7 @@
 import re
 import tkinter as tk
 import locale
-from datetime import datetime
+from datetime import datetime, timedelta
 from tkinter import ttk
 from tkinter import messagebox
 import time
@@ -48,11 +48,12 @@ print(f"Selected Start Date: {start_date}")
 print(f"Selected End Date: {end_date}")
 
 locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
-current_month = datetime.now().strftime("%B")
+one_day_ago = datetime.now() - timedelta(days=1)
+current_month = one_day_ago.strftime("%B")
 current_year= datetime.now().year
 
-excel_path = rf'Z:\SAFI Independiente\FONDO MUTUO INDEPENDIENTE AGRESIVO DÓLARES\Validación de transferencias\{current_year}\{current_month.capitalize()}\Caja - {start_date} - Agresivo.xlsx'
-second_excel_path = rf'Z:\SAFI Independiente\Flip\Carga clientes\Transacciones\Solicitudes - {end_date} - AGR.xlsx'
+excel_path = rf'Z:\SAFI Independiente\FONDO MUTUO INDEPENDIENTE AGRESIVO DÓLARES\Validación de transferencias\{current_year}\{current_month.capitalize()}\Caja - {start_date} - Agresivo - copia.xlsx'
+second_excel_path = rf'Z:\SAFI Independiente\Flip\Carga clientes\Transacciones\Solicitudes - {start_date} - AGR - copia.xlsx'
 
 df = pd.read_excel(excel_path, sheet_name='AccountDetail')
 df_second = pd.read_excel(second_excel_path, sheet_name='Sheet1')
@@ -153,7 +154,7 @@ def perform_action_and_insert_value(x, y, target_color, current_row):
         print("No se pudieron extraer todos los datos necesarios.")
         return
 
-    while current_row < (len(df) + 2) and pd.notna(df.at[current_row, target_column]):
+    while current_row <= (len(df) + 2) and pd.notna(df.at[current_row, target_column]):
         current_row += 1
     df.at[current_row, target_column] = dni
     print(f"Value '{dni}' inserted into row {current_row}, column {target_column}")
@@ -181,8 +182,8 @@ def perform_action_and_insert_value(x, y, target_color, current_row):
 
     workbook.save(excel_path)
     print("DataFrame saved to Excel file")
-    pyautogui.click(int(screen_width * 0.21), int(screen_height * 0.289))
     time.sleep(0.5)
+    pyautogui.click(int(screen_width * 0.21), int(screen_height * 0.28))
 
 def search_color_on_screen(target_color, current_row, timeout=3):
     start_time = time.time()
