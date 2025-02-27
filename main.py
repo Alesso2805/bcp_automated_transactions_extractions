@@ -1,6 +1,10 @@
 import re
+import tkinter as tk
+import locale
+from datetime import datetime
+from tkinter import ttk
+from tkinter import messagebox
 import time
-from datetime import datetime, timedelta
 import openpyxl
 import pandas as pd
 import pyautogui
@@ -10,22 +14,54 @@ import win32con
 import win32gui
 from openpyxl.reader.excel import load_workbook
 from openpyxl.styles import Alignment
+from tkcalendar import DateEntry
+
 import enter_telecredito
 
-# We log to telecredito and open the window
-# enter_telecredito.login_to_telecredito()
+def get_dates():
+    start_date = start_date_entry.get_date()
+    end_date = end_date_entry.get_date()
+    if start_date > end_date:
+        messagebox.showerror("Invalid Date Range", "Start date must be before end date.")
+    else:
+        global start_date, end_date
+        start_date = start_date.strftime("%d%m%Y")
+        end_date = end_date.strftime("%d%m%Y")
+        root.destroy()
 
-two_yesterday = (datetime.now() - timedelta(days=6)).strftime("%d%m%Y")
-yesterday = (datetime.now() - timedelta(days=5)).strftime("%d%m%Y")
+root = tk.Tk()
+root.title("Select Date Range")
 
-excel_path = rf'C:\Users\Flip\Desktop\Caja - {two_yesterday} - Agresivo.xlsx'
-second_excel_path = rf'C:\Users\Flip\Desktop\Solicitudes - {two_yesterday} - AGR.xlsx'
+ttk.Label(root, text="Start Date:").grid(column=0, row=0, padx=10, pady=10)
+start_date_entry = DateEntry(root, width=12, background='darkblue', foreground='white', borderwidth=2)
+start_date_entry.grid(column=1, row=0, padx=10, pady=10)
+
+ttk.Label(root, text="End Date:").grid(column=0, row=1, padx=10, pady=10)
+end_date_entry = DateEntry(root, width=12, background='darkblue', foreground='white', borderwidth=2)
+end_date_entry.grid(column=1, row=1, padx=10, pady=10)
+
+ttk.Button(root, text="Submit", command=get_dates).grid(column=0, row=2, columnspan=2, pady=10)
+
+root.mainloop()
+
+print(f"Selected Start Date: {start_date}")
+print(f"Selected End Date: {end_date}")
+
+locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
+current_month = datetime.now().strftime("%B")
+current_year= datetime.now().year
+
+excel_path = rf'Z:\SAFI Independiente\FONDO MUTUO INDEPENDIENTE AGRESIVO DÓLARES\Validación de transferencias\{current_year}\{current_month.capitalize()}\Caja - {start_date} - Agresivo.xlsx'
+second_excel_path = rf'Z:\SAFI Independiente\Flip\Carga clientes\Transacciones\Solicitudes - {end_date} - AGR.xlsx'
 
 df = pd.read_excel(excel_path, sheet_name='AccountDetail')
 df_second = pd.read_excel(second_excel_path, sheet_name='Sheet1')
 
 target_column = 'Unnamed: 11'
 start_row = 8
+
+# We log to telecredito and open the window
+enter_telecredito.login_to_telecredito()
 
 screen_width, screen_height = pyautogui.size()
 print(f"Resolución de pantalla detectada: {screen_width}x{screen_height}")
@@ -224,9 +260,9 @@ def main():
         pyautogui.hotkey('tab')
         pyautogui.hotkey('backspace')
     pyautogui.click(int(screen_width * 0.22), int(screen_height * 0.72))
-    pyautogui.typewrite(two_yesterday)
+    pyautogui.typewrite(start_date)
     pyautogui.hotkey('tab')
-    pyautogui.typewrite(yesterday)
+    pyautogui.typewrite(end_date)
     pyautogui.hotkey('tab')
     pyautogui.hotkey('enter')
     wait_for_color(int(screen_width * 0.823), int(screen_height * 0.878), (96,108,127))
@@ -262,7 +298,7 @@ def main():
                 pyautogui.typewrite(str(numero_operacion))
                 pyautogui.press('enter')
                 pyautogui.press('enter')
-                pyautogui.scroll(40)
+                pyautogui.scroll(45)
                 time.sleep(0.5)
                 if search_color_on_screen((255, 150, 50), current_row):
                     print(f"Match found for {numero_operacion} on page {page + 1}")
