@@ -19,12 +19,12 @@ from tkcalendar import DateEntry
 import enter_telecredito
 
 def get_dates():
+    global start_date, end_date
     start_date = start_date_entry.get_date()
     end_date = end_date_entry.get_date()
     if start_date > end_date:
         messagebox.showerror("Invalid Date Range", "Start date must be before end date.")
     else:
-        global start_date, end_date
         start_date = start_date.strftime("%d%m%Y")
         end_date = end_date.strftime("%d%m%Y")
         root.destroy()
